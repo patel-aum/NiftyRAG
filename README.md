@@ -5,9 +5,10 @@ Production-ready **RAG chatbot** for real-time **NSE Nifty 50** stock analysis. 
 ## Features
 
 - **Chat UI** with streaming responses (Tailwind + shadcn-style components)
+- **Data source**: **Yahoo Finance** for real Nifty 50 index (^NSEI) and Nifty 50 stocks (TCS, Reliance, HDFC Bank, Infosys, etc.) — no API key
 - **RAG pipeline**: user query → OpenAI embed → Astra cosine search (top-8) → augmented prompt → **OpenAI** (gpt-4o etc.) response
 - **Auto-load on first prompt**: if the vector index is empty, the first chat request triggers ingest once, then answers using the new data
-- **Daily ingest**: mock Nifty data + optional NSE RSS + Alpha Vantage → chunk → embed → upsert to Astra
+- **Daily ingest**: Yahoo Finance (Nifty 50 index + stocks) + NSE RSS + fallback mock → chunk → embed → upsert to Astra
 - **Vercel Cron**: daily refresh at 6:00 UTC (`/api/ingest`) so the knowledge base stays up to date
 - **Demo queries**: e.g. "Nifty 50 forecast Feb 2026", "Reliance recent performance?"
 
@@ -30,8 +31,9 @@ Copy `.env.example` to `.env.local` and fill in:
 | `OPENAI_CHAT_MODEL` | (Optional) Chat model; default `gpt-4o`. Others: gpt-4.1-mini, gpt-4.1-nano, gpt-5-mini, gpt-5-nano, o4-mini |
 | `ASTRA_DB_API_ENDPOINT` | DataStax Astra DB Serverless endpoint (e.g. `https://<id>-<region>.apps.astra.datastax.com`) |
 | `ASTRA_DB_APPLICATION_TOKEN` | Astra application token |
-| `ALPHA_VANTAGE_API_KEY` | (Optional) Alpha Vantage free tier for live gainers/losers |
 | `CRON_SECRET` | (Optional) Secret for securing cron-triggered ingest on Vercel |
+
+Nifty 50 and stock data come from **Yahoo Finance** (no API key). NSE RSS is fetched when available; mock data is used only if Yahoo fails.
 
 Do not commit `.env.local`.
 
@@ -73,7 +75,7 @@ With Astra + OpenAI configured:
 **RAG (Retrieval Augmented Generation)** in this app:
 
 1. **Indexing (ingest)**  
-   Documents (mock Nifty summaries, NSE RSS, Alpha Vantage gainers/losers) are split into chunks, embedded with OpenAI, and stored in Astra DB. The vector index is a snapshot of what was ingested.
+   Documents (Yahoo Finance Nifty 50 + stocks, NSE RSS, and fallback mock) are split into chunks, embedded with OpenAI, and stored in Astra DB. The vector index is a snapshot of what was ingested.
 
 2. **At query time**  
    The user question is embedded, Astra returns the top-8 most similar chunks (cosine similarity), and those chunks are added to the LLM system prompt. The model answers using that context and cites sources.
@@ -95,7 +97,7 @@ With Astra + OpenAI configured:
 - `app/api/ingest/route.ts` – Data loader endpoint (cron or manual)
 - `lib/astra.ts` – Astra DB client (upsert, similarity search)
 - `lib/embed.ts` – OpenAI text-embedding-3-small
-- `lib/ingest.ts` – Fetch mock + NSE RSS + Alpha Vantage, chunk, embed, upsert
+- `lib/ingest.ts` – Fetch Yahoo Finance (Nifty 50 + stocks) + NSE RSS + fallback mock, chunk, embed, upsert
 - `lib/prompt.ts` – RAG system prompt (context + question → NiftyRAG instructions)
 
 ## Rate limits and errors

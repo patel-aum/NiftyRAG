@@ -140,7 +140,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="mb-4 text-sm text-muted-foreground">
-                The knowledge base loads automatically on your first question. You can also load it now to use mock Nifty data, NSE RSS, and Alpha Vantage.
+                The knowledge base loads automatically on your first question. You can also load it now to pull real Nifty 50 and stock data from Yahoo Finance, plus NSE RSS (fallback mock if needed).
               </p>
               <Button
                 type="button"

@@ -61,6 +61,42 @@ const NIFTY_50_STOCKS: Array<{ sym: string; label: string }> = [
   { sym: "WIPRO.NS", label: "Wipro" },
 ];
 
+/** Synonyms for matching user queries to a single Nifty 50 label (lowercase). */
+const QUERY_SYNONYMS: Record<string, string> = {
+  "m&m": "Mahindra & Mahindra",
+  "m and m": "Mahindra & Mahindra",
+  "mahindra": "Mahindra & Mahindra",
+  "reliance": "Reliance Industries",
+  "l&t": "Larsen & Toubro",
+  "l and t": "Larsen & Toubro",
+  "hul": "Hindustan Unilever",
+  "sbi": "State Bank of India",
+  "ongc": "Oil and Natural Gas",
+  "bajaj fin": "Bajaj Finance",
+  "bajaj finserv": "Bajaj Finserv",
+  "ultratech": "UltraTech Cement",
+  "sun pharma": "Sun Pharma",
+  "dr reddy": "Dr. Reddy's",
+  "tech mahindra": "Tech Mahindra",
+  "kotak": "Kotak Mahindra Bank",
+};
+
+/**
+ * If the query clearly refers to a Nifty 50 stock, return that stock's exact label (for symbol-filtered retrieval).
+ * Enables "mahindra and mahindra forecast" / "M&M performance" to pull M&M chunks even when top-k is crowded.
+ */
+export function getStockLabelFromQuery(query: string): string | null {
+  const q = query.toLowerCase().replace(/\s+/g, " ").trim();
+  if (q.length < 2) return null;
+  for (const [syn, label] of Object.entries(QUERY_SYNONYMS)) {
+    if (q.includes(syn)) return label;
+  }
+  for (const { label } of NIFTY_50_STOCKS) {
+    if (q.includes(label.toLowerCase())) return label;
+  }
+  return null;
+}
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }

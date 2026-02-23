@@ -37,10 +37,12 @@ export async function upsertChunks(chunks: NiftyChunk[]): Promise<void> {
   await coll.insertMany(chunks);
 }
 
+export type NiftyHit = { text: string; source: string; date: string; symbol?: string; similarity?: number };
+
 export async function similaritySearch(
   vector: number[],
   limit: number = 5
-): Promise<Array<{ text: string; source: string; date: string; symbol?: string; similarity?: number }>> {
+): Promise<NiftyHit[]> {
   const db = getDb();
   const coll = db.collection<NiftyChunk>(COLLECTION_NAME);
   const cursor = coll
@@ -48,7 +50,33 @@ export async function similaritySearch(
     .sort({ $vector: vector })
     .limit(limit)
     .includeSimilarity();
-  const out: Array<{ text: string; source: string; date: string; symbol?: string; similarity?: number }> = [];
+  const out: NiftyHit[] = [];
+  for await (const doc of cursor) {
+    out.push({
+      text: doc.text,
+      source: doc.source,
+      date: doc.date,
+      symbol: doc.symbol,
+      similarity: (doc as { $similarity?: number }).$similarity,
+    });
+  }
+  return out;
+}
+
+/** Vector search restricted to chunks with the given symbol (e.g. "Mahindra & Mahindra"). Use when the user query clearly asks about that stock. */
+export async function similaritySearchBySymbol(
+  vector: number[],
+  symbol: string,
+  limit: number = 5
+): Promise<NiftyHit[]> {
+  const db = getDb();
+  const coll = db.collection<NiftyChunk>(COLLECTION_NAME);
+  const cursor = coll
+    .find({ symbol })
+    .sort({ $vector: vector })
+    .limit(limit)
+    .includeSimilarity();
+  const out: NiftyHit[] = [];
   for await (const doc of cursor) {
     out.push({
       text: doc.text,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { Send, Loader2, Database, Sparkles, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,12 @@ import { NiftyRAGLogo } from "@/components/niftyrag-logo";
 
 /** Styled markdown for analyst-style replies: bold headings, clear lists, readable paragraphs */
 const markdownComponents = {
-  p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed">{children}</p>,
-  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-  ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-0.5 text-sm">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-0.5 text-sm">{children}</ol>,
-  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-  h3: ({ children }) => <h3 className="mt-3 mb-1 text-sm font-semibold text-foreground first:mt-0">{children}</h3>,
+  p: ({ children }: { children?: ReactNode }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed">{children}</p>,
+  strong: ({ children }: { children?: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  ul: ({ children }: { children?: ReactNode }) => <ul className="mb-2 ml-4 list-disc space-y-0.5 text-sm">{children}</ul>,
+  ol: ({ children }: { children?: ReactNode }) => <ol className="mb-2 ml-4 list-decimal space-y-0.5 text-sm">{children}</ol>,
+  li: ({ children }: { children?: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  h3: ({ children }: { children?: ReactNode }) => <h3 className="mt-3 mb-1 text-sm font-semibold text-foreground first:mt-0">{children}</h3>,
 };
 
 const DEMO_QUERIES = [

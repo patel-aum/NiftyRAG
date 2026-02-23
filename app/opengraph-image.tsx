@@ -46,10 +46,10 @@ export default function OpenGraphImage() {
             />
           </svg>
         </div>
-        <div style={{ fontSize: 56, fontWeight: 700, color: "#f8fafc", marginBottom: 12 }}>
+        <div style={{ display: "flex", fontSize: 56, fontWeight: 700, color: "#f8fafc", marginBottom: 12 }}>
           Nifty<span style={{ color: "#22c55e" }}>RAG</span>
         </div>
-        <div style={{ fontSize: 24, color: "#94a3b8" }}>
+        <div style={{ display: "flex", fontSize: 24, color: "#94a3b8" }}>
           NSE Nifty 50 · RAG + OpenAI
         </div>
       </div>

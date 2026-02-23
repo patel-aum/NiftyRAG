@@ -2,11 +2,22 @@
 
 import { useState, useCallback } from "react";
 import { Send, Loader2, Database, Sparkles, User } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { NiftyRAGLogo } from "@/components/niftyrag-logo";
+
+/** Styled markdown for analyst-style replies: bold headings, clear lists, readable paragraphs */
+const markdownComponents = {
+  p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-relaxed">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-0.5 text-sm">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-0.5 text-sm">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  h3: ({ children }) => <h3 className="mt-3 mb-1 text-sm font-semibold text-foreground first:mt-0">{children}</h3>,
+};
 
 const DEMO_QUERIES = [
   "Nifty 50 forecast Feb 2026",
@@ -211,9 +222,15 @@ export default function Home() {
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">
                     {m.role === "user" ? "You" : "NiftyRAG"}
                   </span>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {m.content}
-                  </div>
+                  {m.role === "assistant" ? (
+                    <div className="max-w-none text-sm text-foreground [&_strong]:font-semibold [&_ul]:my-2 [&_li]:leading-relaxed">
+                      <ReactMarkdown components={markdownComponents}>{m.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                      {m.content}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

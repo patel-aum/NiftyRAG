@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+# env (never commit keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# next
+.next/
+out/
+# misc
+.DS_Store
+*.pem
+# debug
+npm-debug.log*
+# vercel
+.vercel
+# typescript
+next-env.d.ts
+
+# testing
+coverage/
+testing-output/
+.test-results/
+*.test.local

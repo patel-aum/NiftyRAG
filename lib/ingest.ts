@@ -1,5 +1,6 @@
 import { embedMany } from "./embed";
 import { ensureCollection, upsertChunks, type NiftyChunk } from "./astra";
+import { fetchYahooNiftyData } from "./yahoo";
 
 const CHUNK_SIZE = 500;
 const CHUNK_OVERLAP = 80;
@@ -126,8 +127,17 @@ export async function fetchAlphaVantageNifty(apiKey: string): Promise<Array<{ ti
 export async function runIngest(): Promise<{ chunksCreated: number; sources: string }> {
   const docList: Array<{ title: string; text: string; source: string; symbol?: string }> = [];
 
-  const mock = getMockNiftyData();
-  docList.push(...mock);
+  try {
+    const yahooDocs = await fetchYahooNiftyData();
+    if (yahooDocs.length > 0) docList.push(...yahooDocs);
+  } catch {
+    // fall back to mock when Yahoo fails
+  }
+
+  if (docList.length === 0) {
+    const mock = getMockNiftyData();
+    docList.push(...mock);
+  }
 
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   if (apiKey) {

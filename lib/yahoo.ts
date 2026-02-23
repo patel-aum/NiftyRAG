@@ -1,0 +1,136 @@
+/**
+ * Yahoo Finance real data for Nifty 50 index (^NSEI) and Nifty 50 constituent stocks (.NS).
+ * Uses yahoo-finance2 (no API key). Docs: { title, text, source, symbol } for RAG ingest.
+ */
+
+export type YahooDoc = { title: string; text: string; source: string; symbol?: string };
+
+const SOURCE = "Yahoo Finance";
+const NIFTY_INDEX = "^NSEI";
+
+/** Nifty 50 constituent stocks (Yahoo symbol .NS) so RAG can answer "how is TCS performing" etc. */
+const NIFTY_50_STOCKS: Array<{ sym: string; label: string }> = [
+  { sym: "TCS.NS", label: "TCS" },
+  { sym: "RELIANCE.NS", label: "Reliance Industries" },
+  { sym: "HDFCBANK.NS", label: "HDFC Bank" },
+  { sym: "INFY.NS", label: "Infosys" },
+  { sym: "ICICIBANK.NS", label: "ICICI Bank" },
+  { sym: "HINDUNILVR.NS", label: "Hindustan Unilever" },
+  { sym: "SBIN.NS", label: "State Bank of India" },
+  { sym: "BHARTIARTL.NS", label: "Bharti Airtel" },
+  { sym: "ITC.NS", label: "ITC" },
+  { sym: "KOTAKBANK.NS", label: "Kotak Mahindra Bank" },
+  { sym: "LT.NS", label: "Larsen & Toubro" },
+  { sym: "AXISBANK.NS", label: "Axis Bank" },
+  { sym: "ASIANPAINT.NS", label: "Asian Paints" },
+  { sym: "MARUTI.NS", label: "Maruti Suzuki" },
+  { sym: "WIPRO.NS", label: "Wipro" },
+];
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function quoteToText(symbol: string, q: Record<string, unknown>): string {
+  const price = q.regularMarketPrice ?? q.regularMarketPreviousClose ?? "";
+  const change = q.regularMarketChange != null ? `${q.regularMarketChange}` : "";
+  const changePct = q.regularMarketChangePercent != null ? `${q.regularMarketChangePercent}%` : "";
+  const high = q.regularMarketDayHigh ?? "";
+  const low = q.regularMarketDayLow ?? "";
+  const open = q.regularMarketOpen ?? "";
+  const parts = [
+    `${symbol} last price ${price}`,
+    change !== "" ? `change ${change}` : "",
+    changePct !== "" ? `(${changePct})` : "",
+    open !== "" ? `open ${open}` : "",
+    high !== "" ? `high ${high}` : "",
+    low !== "" ? `low ${low}` : "",
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+/**
+ * Fetches real Nifty 50 index (^NSEI) and Nifty 50 constituent stock quotes from Yahoo Finance.
+ * Returns docs in RAG shape so queries like "how is TCS performing" can be answered.
+ */
+export async function fetchYahooNiftyData(): Promise<YahooDoc[]> {
+  let YahooFinance: new () => {
+    quote: (symbol: string) => Promise<Record<string, unknown>>;
+    historical?: (symbol: string, opts: { period1: string; period2: string }) => Promise<Array<Record<string, unknown>>>;
+  };
+  try {
+    const mod = await import("yahoo-finance2");
+    YahooFinance = (mod.default ?? mod) as typeof YahooFinance;
+  } catch {
+    return [];
+  }
+
+  const yahooFinance = new YahooFinance();
+  const docs: YahooDoc[] = [];
+  const d = todayISO();
+
+  // Nifty 50 index
+  try {
+    const quote = (await yahooFinance.quote(NIFTY_INDEX)) as Record<string, unknown>;
+    if (quote && typeof quote === "object") {
+      const text = quoteToText("Nifty 50", quote);
+      if (text.length >= 5) {
+        docs.push({
+          title: `Nifty 50 (${NIFTY_INDEX})`,
+          text: `${text}. Date ${d}.`,
+          source: SOURCE,
+          symbol: "Nifty 50",
+        });
+      }
+    }
+  } catch {
+    // skip
+  }
+
+  // Nifty 50 constituent stocks (TCS, Reliance, HDFC Bank, Infosys, etc.)
+  for (const { sym, label } of NIFTY_50_STOCKS) {
+    try {
+      const quote = (await yahooFinance.quote(sym)) as Record<string, unknown>;
+      if (!quote || typeof quote !== "object") continue;
+      const text = quoteToText(label, quote);
+      if (text.length < 5) continue;
+      docs.push({
+        title: `${label} (${sym})`,
+        text: `${text}. Date ${d}.`,
+        source: SOURCE,
+        symbol: label,
+      });
+    } catch {
+      // skip symbol on error
+    }
+  }
+
+  // Optional: last 5 trading days for Nifty 50 for context
+  if (yahooFinance.historical) {
+    try {
+      const end = new Date();
+      const start = new Date(end);
+      start.setDate(start.getDate() - 7);
+      const period1 = start.toISOString().slice(0, 10);
+      const period2 = end.toISOString().slice(0, 10);
+      const history = await yahooFinance.historical(NIFTY_INDEX, { period1, period2 });
+      if (Array.isArray(history) && history.length > 0) {
+        const last5 = history.slice(-5);
+        const lines = last5.map(
+          (d: Record<string, unknown>) =>
+            `${d.date}: open ${d.open ?? ""} high ${d.high ?? ""} low ${d.low ?? ""} close ${d.close ?? ""}`
+        );
+        docs.push({
+          title: "Nifty 50 recent history",
+          text: `Nifty 50 (^NSEI) last 5 sessions. ${lines.join(". ")}`,
+          source: SOURCE,
+          symbol: "Nifty 50",
+        });
+      }
+    } catch {
+      // optional
+    }
+  }
+
+  return docs;
+}

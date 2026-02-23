@@ -24,6 +24,8 @@ export default function Home() {
   const [error, setError] = useState<Error | null>(null);
   const [ingestLoading, setIngestLoading] = useState(false);
   const [ingestMessage, setIngestMessage] = useState<string | null>(null);
+  const [ingestClickCount, setIngestClickCount] = useState(0);
+  const ingestButtonDisabled = ingestClickCount >= 2;
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -73,6 +75,16 @@ export default function Home() {
   );
 
   const handleLoadData = useCallback(async () => {
+    const nextCount = ingestClickCount + 1;
+    setIngestClickCount(nextCount);
+
+    if (nextCount >= 2) {
+      setIngestMessage(
+        `You are Rude, it costs me in $, if you press this button ${nextCount} times`
+      );
+      return;
+    }
+
     setIngestMessage(null);
     setIngestLoading(true);
     try {
@@ -91,7 +103,7 @@ export default function Home() {
     } finally {
       setIngestLoading(false);
     }
-  }, []);
+  }, [ingestClickCount]);
 
   return (
     <div className="flex h-dvh flex-col bg-background">
@@ -133,9 +145,12 @@ export default function Home() {
               <Button
                 type="button"
                 variant="outline"
-                className="gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10"
+                className={cn(
+                  "gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10",
+                  ingestButtonDisabled && "cursor-not-allowed opacity-50"
+                )}
                 onClick={handleLoadData}
-                disabled={ingestLoading}
+                disabled={ingestLoading || ingestButtonDisabled}
               >
                 {ingestLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -147,7 +162,8 @@ export default function Home() {
               {ingestMessage && (
                 <p className={cn(
                   "mt-3 text-sm",
-                  ingestMessage.startsWith("Loaded") ? "text-emerald-500 dark:text-emerald-400" : "text-destructive"
+                  ingestMessage.startsWith("Loaded") ? "text-emerald-500 dark:text-emerald-400" : "text-destructive",
+                  ingestMessage.startsWith("You are Rude") && "font-medium text-amber-600 dark:text-amber-400"
                 )}>
                   {ingestMessage}
                 </p>

@@ -1,4 +1,4 @@
-import { generateText, stepCountIs } from "ai";
+import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { buildAgentTools } from "@/lib/agent-tools";
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompt";
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       system: AGENT_SYSTEM_PROMPT,
       messages: chatMessages,
       tools,
-      stopWhen: stepCountIs(5),
+      maxSteps: 5,
       maxTokens: 1024,
     });
 

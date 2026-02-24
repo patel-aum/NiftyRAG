@@ -30,7 +30,7 @@ export function buildAgentTools() {
     search_rag: tool({
       description:
         "Search the Nifty 50 knowledge base for historical data, forecasts, support/resistance levels, and analyst views. Use when the user asks about past performance, key levels, outlook, or document-based context.",
-      inputSchema: z.object({
+      parameters: z.object({
         query: z.string().describe("The search query (e.g. 'Nifty 50 resistance levels', 'TCS earnings outlook')"),
         limit: z.number().min(1).max(15).optional().describe("Max number of chunks to return (default 8)"),
       }),
@@ -74,7 +74,7 @@ export function buildAgentTools() {
     get_nifty_live: tool({
       description:
         "Get the current live NIFTY 50 (^NSEI) index price, day change, and session high/low. Use when the user asks for current or real-time Nifty level.",
-      inputSchema: z.object({}),
+      parameters: z.object({}),
       execute: async () => {
         const data = await getNiftyLive();
         if (!data)
@@ -87,7 +87,7 @@ export function buildAgentTools() {
     get_stock_quote: tool({
       description:
         "Get the current live stock quote for an Indian (NSE) stock. Use when the user asks for current price, today's change, or real-time quote for a specific stock (e.g. TCS, Reliance, Infosys).",
-      inputSchema: z.object({
+      parameters: z.object({
         symbol: z
           .string()
           .describe("Stock symbol: e.g. TCS, RELIANCE, INFY, or TCS.NS, RELIANCE.NS for NSE"),
@@ -104,7 +104,7 @@ export function buildAgentTools() {
     get_historical_data: tool({
       description:
         "Get historical daily/weekly/monthly price data for an Indian (NSE) stock. Use when the user asks for past performance, history, or chart data.",
-      inputSchema: z.object({
+      parameters: z.object({
         symbol: z.string().describe("Stock symbol (e.g. TCS, RELIANCE.NS)"),
         interval: z
           .enum(["1d", "1wk", "1mo"])
@@ -123,7 +123,7 @@ export function buildAgentTools() {
     get_nifty_stock_details: tool({
       description:
         "Get both live quote and recent history for any Nifty 50 stock in one call. Use when the user asks for 'details', 'everything', or full info about a specific Nifty stock (e.g. TCS, Reliance, Infosys). Accepts stock name or symbol.",
-      inputSchema: z.object({
+      parameters: z.object({
         symbolOrName: z
           .string()
           .describe("Nifty 50 stock by name or symbol (e.g. TCS, Reliance, RELIANCE.NS, Infosys)"),

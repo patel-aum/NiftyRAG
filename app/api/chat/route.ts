@@ -1,14 +1,9 @@
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { embedText } from "@/lib/embed";
-import { similaritySearch, similaritySearchBySymbol, isAstraConfigured } from "@/lib/astra";
-import { buildRagSystemPrompt } from "@/lib/prompt";
-import { runIngest } from "@/lib/ingest";
-import { getStockLabelFromQuery } from "@/lib/yahoo";
+import { buildAgentTools } from "@/lib/agent-tools";
+import { AGENT_SYSTEM_PROMPT } from "@/lib/prompt";
 
 const RATE_LIMIT_REQUESTS = 30;
-/** Only auto-run ingest once per process when retrieval returns 0 hits (avoids re-ingesting on every unrelated query). */
-let hasAutoIngestedThisProcess = false;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const store: { count: number; resetAt: number } = { count: 0, resetAt: Date.now() + RATE_LIMIT_WINDOW_MS };
 
@@ -43,59 +38,19 @@ export async function POST(req: Request) {
       return Response.json({ error: "Empty message" }, { status: 400 });
     }
 
-    let context = "";
-    let hasNoHits = true;
-    if (isAstraConfigured() && apiKey) {
-      try {
-        let queryVector = await embedText(question);
-        let hits = await similaritySearch(queryVector, 10);
-        // First prompt with empty index: auto-load Nifty data once, then re-retrieve
-        if (hits.length === 0 && !hasAutoIngestedThisProcess) {
-          hasAutoIngestedThisProcess = true;
-          try {
-            await runIngest();
-            queryVector = await embedText(question);
-            hits = await similaritySearch(queryVector, 10);
-          } catch (ingestErr) {
-            console.warn("[NiftyRAG] Auto-ingest on first prompt failed:", ingestErr);
-          }
-        }
-        // When the user clearly asks about a stock (e.g. "mahindra and mahindra forecast"), ensure we include chunks for that symbol
-        const stockLabel = getStockLabelFromQuery(question);
-        if (stockLabel) {
-          const bySymbol = await similaritySearchBySymbol(queryVector, stockLabel, 5);
-          const seen = new Set(hits.map((h) => h.text));
-          for (const h of bySymbol) {
-            if (!seen.has(h.text)) {
-              seen.add(h.text);
-              hits.push(h);
-            }
-          }
-        }
-        hasNoHits = hits.length === 0;
-        context = hits
-          .map((h, i) => `[${i + 1}] (${h.source}, ${h.date}) ${h.text}`)
-          .join("\n\n");
-      } catch (e) {
-        context = `(Retrieval failed: ${e instanceof Error ? e.message : "unknown"}. Proceed with no context.)`;
-      }
-    } else {
-      context =
-        "(Vector DB not configured. Add ASTRA_DB_* for RAG. Using general knowledge only.)";
-    }
-
-    const systemPrompt = buildRagSystemPrompt(context, question, hasNoHits);
-
     const chatMessages = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    // OpenAI (or compatible) chat model: gpt-4o, gpt-4.1-mini, gpt-5-mini, etc.
     const modelId = process.env.OPENAI_CHAT_MODEL || "gpt-4o";
+    const tools = buildAgentTools();
+
     const { text } = await generateText({
       model: openai(modelId),
-      system: systemPrompt,
+      system: AGENT_SYSTEM_PROMPT,
       messages: chatMessages,
+      tools,
+      stopWhen: stepCountIs(5),
       maxTokens: 1024,
     });
 

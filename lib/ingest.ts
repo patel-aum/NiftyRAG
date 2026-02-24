@@ -86,44 +86,6 @@ export async function fetchNseRssItems(limit: number = 20): Promise<Array<{ titl
   }
 }
 
-/** Alpha Vantage TOP_GAINERS_LOSERS or TIME_SERIES_DAILY – free tier 5/min */
-export async function fetchAlphaVantageNifty(apiKey: string): Promise<Array<{ title: string; text: string; source: string }>> {
-  const base = "https://www.alphavantage.co/query";
-  const entries: Array<{ title: string; text: string; source: string }> = [];
-  try {
-    const url = `${base}?function=TOP_GAINERS_LOSERS&apikey=${apiKey}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return entries;
-    const data = (await res.json()) as {
-      metadata?: string;
-      top_gainers?: Array<{ ticker: string; price: string; change_percentage: string }>;
-      top_losers?: Array<{ ticker: string; price: string; change_percentage: string }>;
-    };
-    const d = todayISO();
-    if (Array.isArray(data.top_gainers)) {
-      for (const g of data.top_gainers.slice(0, 10)) {
-        entries.push({
-          title: `Top gainer: ${g.ticker}`,
-          text: `${g.ticker} price ${g.price}, change ${g.change_percentage}.`,
-          source: `Alpha Vantage Top Gainers (${d})`,
-        });
-      }
-    }
-    if (Array.isArray(data.top_losers)) {
-      for (const l of data.top_losers.slice(0, 10)) {
-        entries.push({
-          title: `Top loser: ${l.ticker}`,
-          text: `${l.ticker} price ${l.price}, change ${l.change_percentage}.`,
-          source: `Alpha Vantage Top Losers (${d})`,
-        });
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return entries;
-}
-
 export async function runIngest(): Promise<{ chunksCreated: number; sources: string }> {
   const docList: Array<{ title: string; text: string; source: string; symbol?: string }> = [];
 
@@ -137,12 +99,6 @@ export async function runIngest(): Promise<{ chunksCreated: number; sources: str
   if (docList.length === 0) {
     const mock = getMockNiftyData();
     docList.push(...mock);
-  }
-
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  if (apiKey) {
-    const alpha = await fetchAlphaVantageNifty(apiKey);
-    docList.push(...alpha.map((a) => ({ ...a, symbol: undefined })));
   }
 
   try {

@@ -1,0 +1,5 @@
+# mcp-use: run MCP without a separate client — use MCPAgent to connect to MCP servers and call tools.
+# See https://pypi.org/project/mcp-use/ and https://docs.mcp-use.com/
+mcp-use>=1.6.0
+langchain-openai>=0.3.0
+python-dotenv>=1.0.0

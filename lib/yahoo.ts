@@ -97,6 +97,21 @@ export function getStockLabelFromQuery(query: string): string | null {
   return null;
 }
 
+/** Return NSE symbol (.NS) for any Nifty 50 stock by name, synonym, or symbol. Used for live quote/history tools. */
+export function getNiftySymbolForQuery(query: string): string | null {
+  const label = getStockLabelFromQuery(query);
+  if (label) {
+    const e = NIFTY_50_STOCKS.find((x) => x.label === label);
+    return e?.sym ?? null;
+  }
+  if (query.includes(".NS")) return query;
+  const upper = query.toUpperCase().replace(/\s+/g, "").replace(/&/g, "");
+  const bySym = NIFTY_50_STOCKS.find((x) => x.sym === `${upper}.NS` || x.sym.startsWith(`${upper}.`));
+  if (bySym) return bySym.sym;
+  if (upper.length >= 2) return `${upper}.NS`;
+  return null;
+}
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -157,19 +172,57 @@ export async function fetchYahooNiftyData(): Promise<YahooDoc[]> {
     // skip
   }
 
-  // Nifty 50 constituent stocks (TCS, Reliance, HDFC Bank, Infosys, etc.)
+  // Nifty 50 constituent stocks: current quote + optional 1-year performance summary for "1Y performance" queries
+  const end = new Date();
+  const start1Y = new Date(end);
+  start1Y.setFullYear(start1Y.getFullYear() - 1);
+  const period1Y = start1Y.toISOString().slice(0, 10);
+  const period2 = end.toISOString().slice(0, 10);
+
   for (const { sym, label } of NIFTY_50_STOCKS) {
     try {
       const quote = (await yahooFinance.quote(sym)) as Record<string, unknown>;
       if (!quote || typeof quote !== "object") continue;
       const text = quoteToText(label, quote);
-      if (text.length < 5) continue;
-      docs.push({
-        title: `${label} (${sym})`,
-        text: `${text}. Date ${d}.`,
-        source: SOURCE,
-        symbol: label,
-      });
+      if (text.length >= 5) {
+        docs.push({
+          title: `${label} (${sym})`,
+          text: `${text}. Date ${d}.`,
+          source: SOURCE,
+          symbol: label,
+        });
+      }
+      // One-year performance summary so RAG can answer "1 year ago to date performance"
+      if (yahooFinance.historical) {
+        try {
+          const history = (await yahooFinance.historical(sym, { period1: period1Y, period2 })) as Array<{ date: Date | string; close?: number }>;
+          if (Array.isArray(history) && history.length >= 2) {
+            const sorted = [...history].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+            const first = sorted[0];
+            const last = sorted[sorted.length - 1];
+            const closeFirst = first?.close;
+            const closeLast = last?.close ?? (quote?.regularMarketPrice as number | undefined);
+            const dateFirst = first?.date != null ? String(first.date).slice(0, 10) : period1Y;
+            const dateLast = last?.date != null ? String(last.date).slice(0, 10) : d;
+            let oneYText = `${label} one-year performance: from ${dateFirst} close ${closeFirst ?? "N/A"} to ${dateLast} close ${closeLast ?? "N/A"}.`;
+            if (typeof closeFirst === "number" && typeof closeLast === "number" && closeFirst > 0) {
+              const pct = (((closeLast - closeFirst) / closeFirst) * 100).toFixed(2);
+              oneYText += ` Return ${pct}% over the period.`;
+            }
+            oneYText += ` Date ${d}.`;
+            docs.push({
+              title: `${label} 1Y performance`,
+              text: oneYText,
+              source: SOURCE,
+              symbol: label,
+            });
+          }
+        } catch {
+          // skip 1Y for this symbol
+        }
+      }
     } catch {
       // skip symbol on error
     }

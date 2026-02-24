@@ -18,9 +18,10 @@ export interface NiftyLiveResult {
 export async function getNiftyLive(): Promise<NiftyLiveResult | null> {
   try {
     const mod = await import("yahoo-finance2");
-    const yahoo = (mod.default ?? mod) as {
+    const YahooFinance = (mod.default ?? mod) as new () => {
       quote: (symbol: string) => Promise<Record<string, unknown>>;
     };
+    const yahoo = new YahooFinance();
     const q = await yahoo.quote(NIFTY_INDEX);
     if (!q || typeof q !== "object") return null;
     const price = Number(q.regularMarketPrice ?? q.regularMarketPreviousClose ?? 0);

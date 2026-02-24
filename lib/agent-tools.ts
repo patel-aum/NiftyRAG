@@ -93,9 +93,10 @@ export function buildAgentTools() {
           .describe("Stock symbol: e.g. TCS, RELIANCE, INFY, or TCS.NS, RELIANCE.NS for NSE"),
       }),
       execute: async ({ symbol }) => {
-        const data = await getStockQuote(symbol);
+        const resolved = getNiftySymbolForQuery(symbol) ?? symbol;
+        const data = await getStockQuote(resolved);
         if (!data)
-          return { error: `Could not fetch quote for ${symbol}. Check symbol (e.g. TCS.NS, RELIANCE.NS).` };
+          return { error: `Quote for ${symbol} (${resolved}) is temporarily unavailable. Please try again in a moment.` };
         return data;
       },
     }),
@@ -112,10 +113,11 @@ export function buildAgentTools() {
           .describe("Interval: 1d (daily, ~1Y), 1wk (weekly), 1mo (monthly). Default 1d."),
       }),
       execute: async ({ symbol, interval = "1d" }) => {
-        const data = await getHistoricalData(symbol, interval as HistoricalInterval);
+        const resolved = getNiftySymbolForQuery(symbol) ?? symbol;
+        const data = await getHistoricalData(resolved, interval as HistoricalInterval);
         if (!data || data.length === 0)
-          return { error: `No historical data for ${symbol}. Check symbol.` };
-        return { symbol, interval, dataPoints: data.length, series: data.slice(-30) };
+          return { error: `Historical data for ${symbol} (${resolved}) is temporarily unavailable. Try again in a moment.` };
+        return { symbol: resolved, interval, dataPoints: data.length, series: data.slice(-30) };
       },
     }),
 
@@ -135,7 +137,7 @@ export function buildAgentTools() {
           getHistoricalData(symbol, "1d"),
         ]);
         if (!quote && (!history || history.length === 0))
-          return { error: `No data for ${symbolOrName}. Ensure it is a Nifty 50 stock.` };
+          return { error: `Data for ${symbolOrName} (${symbol}) is temporarily unavailable. Please try again in a moment.` };
         return { quote: quote ?? null, history: history ? history.slice(-30) : null };
       },
     }),
